@@ -11,13 +11,17 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.hardware.Camera.Size;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Handler.Callback;
 import android.os.Message;
+import android.os.SystemClock;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 
 public class MarqueeText extends Activity {
 
@@ -32,6 +36,7 @@ public class MarqueeText extends Activity {
     private DisplayMetrics metrics;
 
     private final Semaphore available = new Semaphore(0, true);
+    private ColorQueue mColorQueue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,7 +45,15 @@ public class MarqueeText extends Activity {
         metrics = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(metrics);
 
+        mColorQueue = new ColorQueue(1000, Color.RED, Color.GREEN, Color.CYAN,
+                Color.BLUE);
         view = new MarqueeTextView(this);
+        view.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+                | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+                | View.SYSTEM_UI_FLAG_IMMERSIVE);
         setContentView(view);
         log("onCreate " + metrics.density + " " + metrics.densityDpi);
         handler = new Handler(new Callback() {
@@ -73,6 +86,7 @@ public class MarqueeText extends Activity {
         log("onResume");
         // handler.sendEmptyMessageDelayed(MSG_POKE, 100);
         // handler.sendEmptyMessage(MSG_POKE);
+        mColorQueue.reset();
     }
 
     @Override
@@ -109,7 +123,7 @@ public class MarqueeText extends Activity {
         }
     }
 
-    private class MarqueeTextView extends View {
+    class MarqueeTextView extends View {
 
         private Paint mPaint = new Paint();
         private Path mPath = new Path();
@@ -135,7 +149,8 @@ public class MarqueeText extends Activity {
             // TODO Auto-generated method stub
             Paint paint = mPaint;
 
-            canvas.drawColor(color ? Color.RED : Color.BLUE);
+            // canvas.drawColor(color ? Color.RED : Color.BLUE);
+            canvas.drawColor(mColorQueue.getColor());
             paint.setAntiAlias(true);
             paint.setColor(Color.BLACK);
             paint.setStyle(Paint.Style.FILL);
@@ -177,33 +192,77 @@ public class MarqueeText extends Activity {
         }
     }
 
-    private class ColorQueue {
+    class ColorQueue {
         boolean started = false;
-        long startTime;
-        long pulse;
+        long startTime, endTime;
+
+        long now, pulse;
+
         ArrayList<Integer> colorList = new ArrayList<Integer>();
-        int[] argb = new int[4];
+        int pos = 0;
+        int size = 0;
+
+        int color;
 
         public ColorQueue(long p, int... colors) {
             pulse = p;
-            if (colors.length == 0) {
+            if (colors == null || colors.length == 0) {
                 colorList.add(Color.BLACK);
                 colorList.add(Color.WHITE);
-                return;
+            } else {
+                for (int c : colors) {
+                    colorList.add(c);
+                }
             }
-
-            for (int c : colors) {
-                colorList.add(c);
-            }
+            size = colorList.size();
+            log("ColorQueue() size = " + size);
         }
 
-        public int[] getARGB() {
+        public int getColor() {
+            startIfNeeded();
+            log("getColor() pos = " + pos + " startTime = " + startTime
+                    + " endTime = " + endTime);
 
+            int colorFrom = colorList.get(pos);
+            int colorTo = colorList.get((pos + 1) % size);
+            now = System.currentTimeMillis();
+            final float t = (now - startTime) / (float) (pulse);
+
+            color = Color.argb(
+                    (int) (t * Color.alpha(colorTo) + Color.alpha(colorFrom)
+                            * (1 - t)),
+                    (int) (t * Color.red(colorTo) + Color.red(colorFrom)
+                            * (1 - t)),
+                    (int) (t * Color.green(colorTo) + Color.green(colorFrom)
+                            * (1 - t)),
+                    (int) (t * Color.blue(colorTo) + Color.blue(colorFrom)
+                            * (1 - t)));
+            if (now > endTime) {
+                startTime = now;
+                endTime = startTime + pulse;
+                pos = (pos + 1) % size;
+            }
+            log("getColor() color = " + color);
+            return color;
+        }
+
+        private void startIfNeeded() {
+            if (started)
+                return;
+            log("startIfNeeded()");
+            startTime = System.currentTimeMillis();
+            endTime = startTime + pulse;
+            started = true;
+        }
+
+        public void reset() {
+            log("reset()");
+            started = false;
         }
 
     }
 
-    private void log(String msg) {
+    void log(String msg) {
         Log.d("felixx", msg);
     }
 }
