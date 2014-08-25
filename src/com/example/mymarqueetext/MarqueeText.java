@@ -10,6 +10,10 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Handler.Callback;
@@ -18,7 +22,7 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 
-public class MarqueeText extends Activity {
+public class MarqueeText extends Activity implements SensorEventListener {
 
     public static final int MSG_POKE = 0;
     MarqueeTextView view;
@@ -31,6 +35,9 @@ public class MarqueeText extends Activity {
 
     private final Semaphore available = new Semaphore(0, true);
     private ColorQueue mColorQueue;
+
+    private SensorManager mSensorManager;
+    private Sensor mSensor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +57,10 @@ public class MarqueeText extends Activity {
                 | View.SYSTEM_UI_FLAG_IMMERSIVE);
         setContentView(view);
         log("onCreate " + metrics.density + " " + metrics.densityDpi);
+
+        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        mSensor = mSensorManager
+                .getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         handler = new Handler(new Callback() {
 
             @Override
@@ -81,6 +92,8 @@ public class MarqueeText extends Activity {
         // handler.sendEmptyMessageDelayed(MSG_POKE, 100);
         // handler.sendEmptyMessage(MSG_POKE);
         mColorQueue.reset();
+        mSensorManager.registerListener(this, mSensor,
+                SensorManager.SENSOR_DELAY_FASTEST);
     }
 
     @Override
@@ -88,6 +101,7 @@ public class MarqueeText extends Activity {
         // TODO Auto-generated method stub
         super.onPause();
         log("onPause");
+        mSensorManager.unregisterListener(this);
     }
 
     private class DrawingThread extends Thread {
@@ -254,5 +268,19 @@ public class MarqueeText extends Activity {
 
     void log(String msg) {
         Log.d("felixx", msg);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+
+        log("onSensorChanged()-----------");
+        log("onSensorChanged() X " + event.values[0]);
+        log("onSensorChanged() Y " + event.values[1]);
+        log("onSensorChanged() Z " + event.values[2]);
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        log("onAccuracyChanged()");
     }
 }
