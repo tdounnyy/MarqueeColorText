@@ -3,7 +3,6 @@ package com.example.mymarqueetext;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
 
-import android.R.integer;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Canvas;
@@ -11,17 +10,13 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.hardware.Camera.Size;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Handler.Callback;
 import android.os.Message;
-import android.os.SystemClock;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 
 public class MarqueeText extends Activity {
 
@@ -30,7 +25,6 @@ public class MarqueeText extends Activity {
     Handler handler;
     boolean showing = false;
     int degree = 0;
-    private static final int BG_CYCLE = 50;
     private int bgColorCycle = 0;
     boolean color = false;
     private DisplayMetrics metrics;
@@ -107,10 +101,6 @@ public class MarqueeText extends Activity {
                     available.acquire();
                     // handler.sendEmptyMessage(MSG_POKE);
                     handler.sendEmptyMessageDelayed(MSG_POKE, 10);
-                    if (++bgColorCycle % BG_CYCLE == 0) {
-                        color = !color;
-                        bgColorCycle = 0;
-                    }
                     sleep(10);
                     log("available.release()");
                     available.release();
